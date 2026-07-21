@@ -62,6 +62,14 @@ pipeline {
             }
         }
 
+        stage('Verify AWS Identity') {
+            steps {
+                sh '''
+                    aws sts get-caller-identity
+                 '''
+            }
+        }
+
         stage('Login to Amazon ECR') {
             steps {
 
@@ -103,7 +111,7 @@ pipeline {
             }
         }
 
-        
+        /*
         stage('Deploy to EKS') {
             steps {
 
@@ -112,7 +120,7 @@ pipeline {
                 '''
             }
         }
-        
+        */
 
     }
 
