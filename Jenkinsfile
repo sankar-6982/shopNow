@@ -1,127 +1,95 @@
 pipeline {
+
     agent any
 
     environment {
+
         AWS_REGION = 'ap-south-1'
         AWS_ACCOUNT_ID = '386315605351'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
-        FRONTEND_REPO = 'frontend'
-        BACKEND_REPO  = 'backend'
-        ADMIN_REPO    = 'admin'
-
-        IMAGE_TAG = "${BUILD_NUMBER}"
-    }
-
-    options {
-        timestamps()
-        disableConcurrentBuilds()
+        FRONTEND_IMAGE = 'frontend'
+        BACKEND_IMAGE = 'backend'
+        ADMIN_IMAGE = 'admin'
     }
 
     stages {
 
         stage('Checkout Source') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/sankar-6982/shopNow.git'
+                checkout scm
             }
         }
 
         stage('Verify Workspace') {
             steps {
-                sh '''
-                    echo "Current Directory:"
-                    pwd
-
-                    echo "Workspace Contents:"
-                    ls -la
-                '''
+                sh 'pwd'
+                sh 'ls -la'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-
                 sh """
-                    docker build \
-                    -t ${FRONTEND_REPO}:${IMAGE_TAG} \
-                    ./frontend
+                docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend
+                docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} ./backend
+                docker build -t ${ADMIN_IMAGE}:${BUILD_NUMBER} ./admin
                 """
-
-                sh """
-                    docker build \
-                    -t ${BACKEND_REPO}:${IMAGE_TAG} \
-                    ./backend
-                """
-
-                sh """
-                    docker build \
-                    -t ${ADMIN_REPO}:${IMAGE_TAG} \
-                    ./admin
-                """
-            }
-        }
-
-        stage('Verify AWS Identity') {
-            steps {
-                sh '''
-                    aws sts get-caller-identity
-                 '''
             }
         }
 
         stage('Login to Amazon ECR') {
             steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'sankar-aws'
+                ]]) {
 
-                sh """
+                    sh """
+                    aws sts get-caller-identity
+
                     aws ecr get-login-password --region ${AWS_REGION} | \
                     docker login \
                     --username AWS \
                     --password-stdin ${ECR_REGISTRY}
-                """
+                    """
+                }
             }
         }
 
         stage('Tag Docker Images') {
             steps {
-
                 sh """
-                    docker tag ${FRONTEND_REPO}:${IMAGE_TAG} \
-                    ${ECR_REGISTRY}/${FRONTEND_REPO}:${IMAGE_TAG}
-
-                    docker tag ${BACKEND_REPO}:${IMAGE_TAG} \
-                    ${ECR_REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG}
-
-                    docker tag ${ADMIN_REPO}:${IMAGE_TAG} \
-                    ${ECR_REGISTRY}/${ADMIN_REPO}:${IMAGE_TAG}
+                docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
+                docker tag ${ADMIN_IMAGE}:${BUILD_NUMBER} ${ECR_REGISTRY}/${ADMIN_IMAGE}:${BUILD_NUMBER}
                 """
             }
         }
 
         stage('Push Images to ECR') {
             steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'sankar-aws'
+                ]]) {
 
-                sh """
-                    docker push ${ECR_REGISTRY}/${FRONTEND_REPO}:${IMAGE_TAG}
+                    sh """
+                    aws sts get-caller-identity
 
-                    docker push ${ECR_REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG}
-
-                    docker push ${ECR_REGISTRY}/${ADMIN_REPO}:${IMAGE_TAG}
-                """
+                    docker push ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
+                    docker push ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
+                    docker push ${ECR_REGISTRY}/${ADMIN_IMAGE}:${BUILD_NUMBER}
+                    """
+                }
             }
         }
 
-        /*
         stage('Deploy to EKS') {
             steps {
-
-                sh '''
-                    kubectl apply -f k8s/
-                '''
+                echo "Deployment stage will be added after EKS authentication is fixed."
             }
         }
-        */
-
     }
 
     post {
@@ -132,15 +100,6 @@ pipeline {
 
         failure {
             echo 'Pipeline failed.'
-        }
-
-        always {
-
-            sh '''
-                docker image prune -f
-            '''
-
-            cleanWs()
         }
     }
 }
