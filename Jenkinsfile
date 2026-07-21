@@ -103,7 +103,7 @@ pipeline {
             }
         }
 
-        /*
+        
         stage('Deploy to EKS') {
             steps {
 
@@ -112,7 +112,7 @@ pipeline {
                 '''
             }
         }
-        */
+        
 
     }
 
