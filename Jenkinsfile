@@ -3,14 +3,14 @@ pipeline {
     agent any
 
     environment {
-
-        AWS_REGION = 'ap-south-1'
+        AWS_REGION     = 'ap-south-1'
+        CLUSTER_NAME   = 'demo-eks'
         AWS_ACCOUNT_ID = '386315605351'
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
         FRONTEND_IMAGE = 'frontend'
-        BACKEND_IMAGE = 'backend'
-        ADMIN_IMAGE = 'admin'
+        BACKEND_IMAGE  = 'backend'
+        ADMIN_IMAGE    = 'admin'
     }
 
     stages {
@@ -23,8 +23,10 @@ pipeline {
 
         stage('Verify Workspace') {
             steps {
-                sh 'pwd'
-                sh 'ls -la'
+                sh '''
+                pwd
+                ls -la
+                '''
             }
         }
 
@@ -49,9 +51,7 @@ pipeline {
                     aws sts get-caller-identity
 
                     aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login \
-                    --username AWS \
-                    --password-stdin ${ECR_REGISTRY}
+                    docker login --username AWS --password-stdin ${ECR_REGISTRY}
                     """
                 }
             }
@@ -75,8 +75,6 @@ pipeline {
                 ]]) {
 
                     sh """
-                    aws sts get-caller-identity
-
                     docker push ${ECR_REGISTRY}/${FRONTEND_IMAGE}:${BUILD_NUMBER}
                     docker push ${ECR_REGISTRY}/${BACKEND_IMAGE}:${BUILD_NUMBER}
                     docker push ${ECR_REGISTRY}/${ADMIN_IMAGE}:${BUILD_NUMBER}
@@ -85,15 +83,27 @@ pipeline {
             }
         }
 
-        stage('Deploy to EKS') {
+        stage('Verify EKS Access') {
             steps {
-                echo "Deployment stage will be added after EKS authentication is fixed."
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'sankar-aws'
+                ]]) {
+
+                    sh """
+                    aws eks update-kubeconfig \
+                        --region ${AWS_REGION} \
+                        --name ${CLUSTER_NAME}
+
+                    kubectl get nodes
+                    """
+                }
             }
         }
+
     }
 
     post {
-
         success {
             echo 'Pipeline completed successfully.'
         }
