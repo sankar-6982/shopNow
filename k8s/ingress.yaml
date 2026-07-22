@@ -34,4 +34,4 @@ spec:
           service:
             name: admin-service
             port:
-              number: 3000
+              number: 80
