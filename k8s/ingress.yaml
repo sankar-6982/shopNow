@@ -28,7 +28,7 @@ spec:
             port:
               number: 5000
 
-      - path: /admin
+      - path: /aryan-admin
         pathType: Prefix
         backend:
           service:
