@@ -1,6 +1,5 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-
 metadata:
   name: shopnow-ingress
   namespace: shopnow
@@ -12,15 +11,7 @@ spec:
   - http:
       paths:
 
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend-service
-            port:
-              number: 80
-
-      - path: /api
+      - path: /aryan-admin/api
         pathType: Prefix
         backend:
           service:
@@ -33,5 +24,21 @@ spec:
         backend:
           service:
             name: admin-service
+            port:
+              number: 80
+
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 5000
+
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
             port:
               number: 80
